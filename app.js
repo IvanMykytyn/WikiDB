@@ -33,17 +33,15 @@ app.post("/login", (req, res) => {
     const username = req.body.username
     const password = req.body.password
 
-    User.findOne({email: username}, (err, foundUser) => {
+    User.findOne({email: username}, async (err, foundUser) => {
       if(!err){
         if (foundUser){
-          argon2.verify(foundUser.password, password).then(
+          const match = await argon2.verify(foundUser.password, password)
+          if (match){
             res.render("secrets")
-          ).catch(err => {
+          }else{
             console.log("Wrong password");
-            console.log(err);
-          })
-
-
+          }
         }else{
           console.log("No such a user");
         }
@@ -56,11 +54,10 @@ app.get("/register", (req, res) => {
    res.render("register");
 });
 
-app.post("/register", (req, res) => {
-  argon2.hash(req.body.password).then(password => {
+app.post("/register", async (req, res) => {
     const registerUser = new User({
       email: req.body.username,
-      password: password
+      password: await argon2.hash(req.body.password)
     })
     registerUser.save(err => {
       if (!err){
@@ -69,8 +66,6 @@ app.post("/register", (req, res) => {
         console.log(err);
       }
     })
-  })
-
 })
 
 app.listen(3000, () => {
