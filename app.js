@@ -3,7 +3,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs")
 const mongoose = require("mongoose");
-const md5 = require("md5")
+const argon2 = require('argon2');
 
 const app = express();
 
@@ -31,16 +31,19 @@ app.get("/login", (req, res) => {
 
 app.post("/login", (req, res) => {
     const username = req.body.username
-    const password = md5(req.body.password)
+    const password = req.body.password
 
     User.findOne({email: username}, (err, foundUser) => {
       if(!err){
         if (foundUser){
-          if(foundUser.password === password){
+          argon2.verify(foundUser.password, password).then(
             res.render("secrets")
-          }else{
+          ).catch(err => {
             console.log("Wrong password");
-          }
+            console.log(err);
+          })
+
+
         }else{
           console.log("No such a user");
         }
@@ -54,17 +57,20 @@ app.get("/register", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-  const registerUser = new User({
-    email: req.body.username,
-    password: md5(req.body.password)
+  argon2.hash(req.body.password).then(password => {
+    const registerUser = new User({
+      email: req.body.username,
+      password: password
+    })
+    registerUser.save(err => {
+      if (!err){
+        res.render("secrets")
+      }else{
+        console.log(err);
+      }
+    })
   })
-  registerUser.save(err => {
-    if (!err){
-      res.render("secrets")
-    }else{
-      console.log(err);
-    }
-  })
+
 })
 
 app.listen(3000, () => {
